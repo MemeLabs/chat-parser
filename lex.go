@@ -252,36 +252,11 @@ func lexUsername(l *lexer) stateFn {
 	l.width = 0
 	for {
 		switch r := l.next(); {
-		case r == '>':
-			l.backup()
-			if l.pos > l.start {
-				l.emit(itemUsername)
-			}
-			l.ignore()
-			return lexGreenText
-		case r == '`':
-			l.backup()
-			if x := strings.Index(l.input[l.pos+1:], code); x >= 0 {
-				if l.pos > l.start {
-					l.emit(itemUsername)
-				}
-				l.ignore()
-				return lexOpeningCode
-			}
-			l.next()
-		case r == '|':
-			l.backup()
-			if strings.HasPrefix(l.input[l.pos:], spoiler) {
-				if x := strings.Index(l.input[l.pos+2:], spoiler); x >= 0 {
-					if l.pos > l.start {
-						l.emit(itemUsername)
-					}
-					l.ignore()
-					return lexOpeningSpoiler
-				}
-			}
-			l.next()
-		case unicode.IsSpace(r):
+		case unicode.IsSpace(r) ||
+			r == '`' ||
+			r == '|' ||
+			r == '>' ||
+			r == eof:
 			l.backup()
 			if l.pos > l.start {
 				l.emit(itemUsername)
@@ -294,12 +269,6 @@ func lexUsername(l *lexer) stateFn {
 				return lexGreenText
 			}
 			return lexText
-		case r == eof:
-			if l.pos > l.start {
-				l.emit(itemUsername)
-			}
-			l.emit(itemEOF)
-			return nil
 		}
 	}
 }
@@ -347,6 +316,13 @@ func lexGreenText(l *lexer) stateFn {
 				}
 				l.ignore()
 				return lexEmote
+			}
+			if l.scanUsername() {
+				if l.pos > l.start {
+					l.emit(itemGreenText)
+				}
+				l.ignore()
+				return lexUsername
 			}
 		}
 	}
@@ -415,38 +391,6 @@ func lexEmoteModifier(l *lexer) stateFn {
 	}
 }
 
-// TODO: can we speed this up?
-// returs true if an emote starts at l.pos
-func (l *lexer) scanEmoteModifier() bool {
-	for _, modifier := range l.emoteMidifiers {
-		if strings.HasPrefix(l.input[l.pos+1:], modifier) {
-			return true
-		}
-	}
-	return false
-}
-
-// TODO: can we speed this up?
-// returs true if an emote starts at l.pos
-func (l *lexer) scanEmote() bool {
-	// TODO: remove this from here
-	l.backup()
-	for _, emote := range l.emotes {
-		if strings.HasPrefix(l.input[l.pos:], emote) {
-			if Pos(len(l.input)) <= l.pos+Pos(len(emote)) {
-				return true
-			}
-			afterEmote := rune(l.input[l.pos+Pos(len(emote))])
-
-			return afterEmote == ':' ||
-				unicode.IsSpace(afterEmote) ||
-				strings.HasPrefix(l.input[l.pos+Pos(len(emote)):], "||")
-		}
-	}
-	l.next()
-	return false
-}
-
 func lexOpeningSpoiler(l *lexer) stateFn {
 	l.width = 0
 	l.pos += Pos(2)
@@ -500,6 +444,13 @@ func lexSpoiler(l *lexer) stateFn {
 				l.ignore()
 				return lexEmote
 			}
+			if l.scanUsername() {
+				if l.pos > l.start {
+					l.emit(itemSpoilerText)
+				}
+				l.ignore()
+				return lexUsername
+			}
 		}
 	}
 }
@@ -534,10 +485,41 @@ func lexCode(l *lexer) stateFn {
 	return lexClosingCode
 }
 
+// TODO: can we speed this up?
+// returs true if an emote starts at l.pos
+func (l *lexer) scanEmoteModifier() bool {
+	for _, modifier := range l.emoteMidifiers {
+		if strings.HasPrefix(l.input[l.pos+1:], modifier) {
+			return true
+		}
+	}
+	return false
+}
+
+// TODO: can we speed this up?
+// returs true if an emote starts at l.pos
+func (l *lexer) scanEmote() bool {
+	// TODO: remove this from here
+	l.backup()
+	for _, emote := range l.emotes {
+		if strings.HasPrefix(l.input[l.pos:], emote) {
+			if Pos(len(l.input)) <= l.pos+Pos(len(emote)) {
+				return true
+			}
+			afterEmote := rune(l.input[l.pos+Pos(len(emote))])
+
+			return afterEmote == ':' ||
+				unicode.IsSpace(afterEmote) ||
+				strings.HasPrefix(l.input[l.pos+Pos(len(emote)):], "||")
+		}
+	}
+	l.next()
+	return false
+}
+
 func (l *lexer) scanUsername() bool {
 	l.backup()
 	// FeelsPepoMan improve this
-
 	hasAt := l.accept("@")
 	for _, name := range l.usernames {
 		if strings.HasPrefix(l.input[l.pos:], name) {

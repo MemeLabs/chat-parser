@@ -274,6 +274,13 @@ var lexTests = []lexTest{
 		mkItem(itemText, " hi"),
 		tEOF,
 	}},
+	{"username in spoiler", "hi ||@wrxst||", []item{
+		mkItem(itemText, "hi "),
+		tSpoilerDelim,
+		mkItem(itemUsername, "@wrxst"),
+		tSpoilerDelim,
+		tEOF,
+	}},
 }
 
 func TestLex(t *testing.T) {
@@ -308,7 +315,7 @@ func equal(i1, i2 []item, checkPos bool) bool {
 
 // collect gathers the emitted items into a slice.
 func collect(t *lexTest) (items []item) {
-	l := lex(t.name, t.input, []string{"PEPE", "CuckCrab"}, []string{"wide", "rustle", "spin"}, []string{"abeous", "jeanpierrepratt"})
+	l := lex(t.name, t.input, []string{"PEPE", "CuckCrab"}, []string{"wide", "rustle", "spin"}, []string{"abeous", "jeanpierrepratt", "wrxst"})
 	for {
 		item := l.nextItem()
 		items = append(items, item)
