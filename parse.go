@@ -106,6 +106,20 @@ func (p *sparser) parseNick() (e *Nick) {
 	}
 }
 
+func (p *sparser) tryParseAtNick() (e *Nick) {
+	pos := p.pos
+
+	p.next()
+
+	if _, ok := p.ctx.nicks[p.lit]; !ok {
+		return
+	}
+
+	e = p.parseNick()
+	e.TokPos = pos
+	return
+}
+
 func (p *sparser) parseCode() (s *Span) {
 	pos := p.pos
 
@@ -152,9 +166,13 @@ func (p *sparser) parseSpan(t SpanType) (s *Span) {
 		case sitemPunct:
 			if p.lit == "`" {
 				s.Insert(p.parseCode())
-				continue
+			} else if p.lit == "@" {
+				if n := p.tryParseAtNick(); n != nil {
+					s.Insert(n)
+				}
+			} else {
+				p.next()
 			}
-			p.next()
 		case sitemWord:
 			if _, ok := p.ctx.tags[p.lit]; ok {
 				s.Insert(p.parseTag())

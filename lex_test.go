@@ -715,7 +715,7 @@ var lexTests = []lexTest{
 		Nodes: []Node{
 			&Nick{
 				Nick:   "abeous",
-				TokPos: 1,
+				TokPos: 0,
 				TokEnd: 7,
 			},
 		},
@@ -736,7 +736,7 @@ var lexTests = []lexTest{
 				Nodes: []Node{
 					&Nick{
 						Nick:   "wrxst",
-						TokPos: 6,
+						TokPos: 5,
 						TokEnd: 11,
 					},
 				},
