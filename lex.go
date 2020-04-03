@@ -547,3 +547,135 @@ func isEndOfLine(r rune) bool {
 func isAlphaNumeric(r rune) bool {
 	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
+
+type sitemType int
+
+const (
+	sitemEOF sitemType = iota
+	sitemSpoiler
+	sitemPunct
+	sitemWhitespace
+	sitemWord
+)
+
+var sitemNames = map[sitemType]string{
+	sitemEOF:        "EOF",
+	sitemSpoiler:    "Spoiler",
+	sitemPunct:      "Punct",
+	sitemWhitespace: "Whitespace",
+	sitemWord:       "Word",
+}
+
+func (i sitemType) String() string {
+	return sitemNames[i]
+}
+
+type sitem struct {
+	typ sitemType
+	pos int
+	val []rune
+}
+
+func (i sitem) Pos() int {
+	return i.pos
+}
+
+func (i sitem) End() int {
+	return i.pos + len(i.val)
+}
+
+func (i sitem) String() string {
+	return fmt.Sprintf("(%s %d %s)", i.typ, i.pos, string(i.val))
+}
+
+type slexer struct {
+	input      []rune
+	items      []sitem
+	start, pos int
+}
+
+func (l *slexer) next() rune {
+	l.pos++
+	if l.pos < len(l.input) {
+		return l.input[l.pos]
+	}
+	return eof
+}
+
+func (l *slexer) backup() {
+	l.pos--
+}
+
+func (l *slexer) peek() rune {
+	r := l.next()
+	l.backup()
+	return r
+}
+
+func (l *slexer) accept(test func(r rune) bool) bool {
+	if test(l.next()) {
+		return true
+	}
+	l.backup()
+	return false
+}
+
+func (l *slexer) emit(t sitemType) {
+	l.items = append(l.items, sitem{
+		typ: t,
+		pos: l.start,
+		val: l.input[l.start : l.pos+1],
+	})
+	l.start = l.pos + 1
+}
+
+var nonWord = []*unicode.RangeTable{
+	unicode.Dash,
+	unicode.Hyphen,
+	unicode.Other_Math,
+	unicode.Pattern_Syntax,
+	unicode.Pattern_White_Space,
+	unicode.Quotation_Mark,
+	unicode.Sentence_Terminal,
+	unicode.Terminal_Punctuation,
+	unicode.White_Space,
+}
+
+func (l *slexer) run() {
+	for {
+		r := l.next()
+		switch r {
+		case eof:
+			l.backup()
+			l.emit(sitemEOF)
+			return
+		case '|':
+			if l.accept(func(r rune) bool { return r == '|' }) {
+				l.emit(sitemSpoiler)
+				continue
+			}
+			fallthrough
+		default:
+			if unicode.IsSpace(r) {
+				for l.accept(func(r rune) bool { return r != eof && unicode.IsSpace(r) }) {
+				}
+				l.emit(sitemWhitespace)
+			} else if unicode.IsOneOf(nonWord, r) {
+				l.emit(sitemPunct)
+			} else {
+				for l.accept(func(r rune) bool { return r != eof && !unicode.IsOneOf(nonWord, r) }) {
+				}
+				l.emit(sitemWord)
+			}
+		}
+	}
+}
+
+func slex(input string) []sitem {
+	l := slexer{
+		pos:   -1,
+		input: []rune(input),
+	}
+	l.run()
+	return l.items
+}
