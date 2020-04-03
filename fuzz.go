@@ -4,18 +4,22 @@ package parser
 
 // Fuzz is used by go-fuzz
 func Fuzz(data []byte) int {
-	lexer := lex("fuzz", string(data), emotes, modifiers, names)
-	// keep track of how many items a given iput produces
-	var items int
-	for {
-		item := lexer.nextItem()
-		if item.typ == itemEOF {
-			if items > 3 {
-				return 1
-			}
-			return 0
-		}
+	tokens := slex(string(data))
+
+	ctx := NewParserContext(ParserContextValues{
+		Emotes:         emotes,
+		EmoteModifiers: modifiers,
+		Nicks:          names,
+		Tags:           []string{"nsfw", "weeb", "nsfl", "spoiler"},
+	})
+	p := NewParser(ctx, tokens)
+
+	ast := p.parseMessage()
+	if ast.Nodes != nil {
+		// increase weight of "interesting" content
+		return 1
 	}
+	return 0
 }
 
 var modifiers = []string{"wide",
