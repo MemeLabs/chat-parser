@@ -64,17 +64,32 @@ var lexTests = []lexTest{
 		mkItem(itemSpoilerText, "@"),
 		tSpoilerDelim,
 		tEOF,
+	}, &Span{
+		Type: SpanMessage,
+		Nodes: []Node{
+			&Span{
+				Type: SpanSpoiler,
+				Nodes: []Node{
+					&Span{
+						Type:   SpanCode,
+						TokPos: 2,
+						TokEnd: 10,
+					},
+				},
+				TokPos: 0,
+				TokEnd: 10,
+			},
+		},
+		TokPos: 0,
+		TokEnd: 10,
 	}},
-	{"eemote", "abeous wrxst Nat" + "halie WeirdChampalie" + "\r", []item{
-		mkItem(itemUsername, "abeous"),
-		mkItem(itemText, " "),
-		mkItem(itemUsername, "wrxst"),
-		mkItem(itemText, " Nathalie WeirdChampalie\r"),
-		tEOF,
-	}},
-	{"eemote", "PEPE0", []item{
+	{"emote with trailing", "PEPE0", []item{
 		mkItem(itemText, "PEPE0"),
 		tEOF,
+	}, &Span{
+		Type:   SpanMessage,
+		TokPos: 0,
+		TokEnd: 5,
 	}},
 	{"text with code", "text `with code`", []item{
 		mkItem(itemText, "text "),
@@ -755,6 +770,24 @@ var lexTests = []lexTest{
 		tSpoilerDelim,
 		mkItem(itemText, "`"),
 		tEOF,
+	}, &Span{
+		Type: SpanMessage,
+		Nodes: []Node{
+			&Span{
+				Type: SpanSpoiler,
+				Nodes: []Node{
+					&Span{
+						Type:   SpanCode,
+						TokPos: 2,
+						TokEnd: 6,
+					},
+				},
+				TokPos: 0,
+				TokEnd: 6,
+			},
+		},
+		TokPos: 0,
+		TokEnd: 6,
 	}},
 }
 
