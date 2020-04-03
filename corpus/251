@@ -1,0 +1,1 @@
+Ftwpala imagine you have an md5 hash. This is just a number. You can save that to disk by writing it out as a string "d41d...427e" and it will be 32 characters long. Under the hood a "string" is just a series of numbers interpreted by an ascii table: 'd' is 100, '4' is 52, '1' is 49, etc.. but since the string is just a hex number it's easier to write it as hex--0xd4, 0x1d, etc.

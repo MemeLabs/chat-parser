@@ -1,10 +1,4 @@
-// Copyright 2011 The Go Authors. All rights reserved.
-
-// Use of this source code is governed by a BSD-style
-
-// license that can be found in the LICENSE file.
-
-package main
+package parser
 
 import (
 	"fmt"
@@ -62,6 +56,26 @@ var (
 )
 
 var lexTests = []lexTest{
+	{"at without username in spoiler", "||`||||@||", []item{
+		tSpoilerDelim,
+		mkItem(itemSpoilerText, "`"),
+		tSpoilerDelim,
+		tSpoilerDelim,
+		mkItem(itemSpoilerText, "@"),
+		tSpoilerDelim,
+		tEOF,
+	}},
+	{"eemote", "abeous wrxst Nat" + "halie WeirdChampalie" + "\r", []item{
+		mkItem(itemUsername, "abeous"),
+		mkItem(itemText, " "),
+		mkItem(itemUsername, "wrxst"),
+		mkItem(itemText, " Nathalie WeirdChampalie\r"),
+		tEOF,
+	}},
+	{"eemote", "PEPE0", []item{
+		mkItem(itemText, "PEPE0"),
+		tEOF,
+	}},
 	{"text with code", "text `with code`", []item{
 		mkItem(itemText, "text "),
 		tCodeDelim,
@@ -734,6 +748,13 @@ var lexTests = []lexTest{
 		Type:   SpanMessage,
 		TokPos: 0,
 		TokEnd: 8,
+	}},
+	{"code spoiler mashup", "||`||`", []item{
+		tSpoilerDelim,
+		mkItem(itemSpoilerText, "`"),
+		tSpoilerDelim,
+		mkItem(itemText, "`"),
+		tEOF,
 	}},
 }
 

@@ -1,8 +1,4 @@
-// Copyright 2011 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-package main
+package parser
 
 import (
 	"fmt"
@@ -414,18 +410,20 @@ func lexSpoiler(l *lexer) stateFn {
 	l.width = 0
 	for {
 		// scan until we find an emote or the end of the spoiler
-		switch l.next() {
-		case '`':
+		switch r := l.next(); {
+		case r == '`':
 			l.backup()
 			if x := strings.Index(l.input[l.pos+1:], code); x >= 0 {
-				if l.pos > l.start {
-					l.emit(itemSpoilerText)
+				if y := strings.Index(l.input[l.pos+1:], spoiler); y > x {
+					if l.pos > l.start {
+						l.emit(itemSpoilerText)
+					}
+					l.ignore()
+					return lexOpeningCode
 				}
-				l.ignore()
-				return lexOpeningCode
 			}
 			l.next()
-		case '|':
+		case r == '|':
 			l.backup()
 			if strings.HasPrefix(l.input[l.pos:], spoiler) {
 				if l.pos > l.start {
@@ -508,9 +506,11 @@ func (l *lexer) scanEmote() bool {
 			}
 			afterEmote := rune(l.input[l.pos+Pos(len(emote))])
 
-			return afterEmote == ':' ||
+			if afterEmote == ':' ||
 				unicode.IsSpace(afterEmote) ||
-				strings.HasPrefix(l.input[l.pos+Pos(len(emote)):], "||")
+				strings.HasPrefix(l.input[l.pos+Pos(len(emote)):], "||") {
+				return true
+			}
 		}
 	}
 	l.next()
@@ -528,6 +528,9 @@ func (l *lexer) scanUsername() bool {
 			}
 			return true
 		}
+	}
+	if hasAt {
+		l.backup()
 	}
 	l.next()
 	return false
