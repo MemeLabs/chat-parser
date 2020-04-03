@@ -15,8 +15,8 @@ func toMap(arr []string) map[string]struct{} {
 	return m
 }
 
-func NewParserContext(opt ParserContextValues) *sparserContext {
-	return &sparserContext{
+func NewParserContext(opt ParserContextValues) *parserContext {
+	return &parserContext{
 		emotes:         toMap(opt.Emotes),
 		emoteModifiers: toMap(opt.EmoteModifiers),
 		nicks:          toMap(opt.Nicks),
@@ -24,33 +24,33 @@ func NewParserContext(opt ParserContextValues) *sparserContext {
 	}
 }
 
-type sparserContext struct {
+type parserContext struct {
 	emotes         map[string]struct{}
 	emoteModifiers map[string]struct{}
 	nicks          map[string]struct{}
 	tags           map[string]struct{}
 }
 
-func NewParser(ctx *sparserContext, tokens []sitem) *sparser {
-	return &sparser{
+func NewParser(ctx *parserContext, tokens []token) *parser {
+	return &parser{
 		ctx:    ctx,
 		tokens: tokens,
 		i:      -1,
 	}
 }
 
-type sparser struct {
-	ctx *sparserContext
+type parser struct {
+	ctx *parserContext
 
-	tokens []sitem
+	tokens []token
 	i      int
 
 	pos int
-	tok sitemType
+	tok tokType
 	lit string
 }
 
-func (p *sparser) next() {
+func (p *parser) next() {
 	p.i++
 	t := p.tokens[p.i]
 	p.tok = t.typ
@@ -58,7 +58,7 @@ func (p *sparser) next() {
 	p.lit = string(t.val)
 }
 
-func (p *sparser) parseEmote() (e *Emote) {
+func (p *parser) parseEmote() (e *Emote) {
 	e = &Emote{
 		Name:   p.lit,
 		TokPos: p.pos,
@@ -80,7 +80,7 @@ func (p *sparser) parseEmote() (e *Emote) {
 	}
 }
 
-func (p *sparser) parseTag() (e *Tag) {
+func (p *parser) parseTag() (e *Tag) {
 	pos := p.pos
 	name := p.lit
 
@@ -93,7 +93,7 @@ func (p *sparser) parseTag() (e *Tag) {
 	}
 }
 
-func (p *sparser) parseNick() (e *Nick) {
+func (p *parser) parseNick() (e *Nick) {
 	pos := p.pos
 	nick := p.lit
 
@@ -106,7 +106,7 @@ func (p *sparser) parseNick() (e *Nick) {
 	}
 }
 
-func (p *sparser) tryParseAtNick() (e *Nick) {
+func (p *parser) tryParseAtNick() (e *Nick) {
 	pos := p.pos
 
 	p.next()
@@ -120,10 +120,10 @@ func (p *sparser) tryParseAtNick() (e *Nick) {
 	return
 }
 
-func (p *sparser) parseCode() (s *Span) {
+func (p *parser) parseCode() (s *Span) {
 	pos := p.pos
 
-	for p.tok != sitemEOF {
+	for p.tok != tokEOF {
 		p.next()
 		if p.lit == "`" {
 			p.next()
@@ -138,7 +138,7 @@ func (p *sparser) parseCode() (s *Span) {
 	}
 }
 
-func (p *sparser) parseSpan(t SpanType) (s *Span) {
+func (p *parser) parseSpan(t SpanType) (s *Span) {
 	s = &Span{
 		Type:   t,
 		TokPos: p.pos,
@@ -153,17 +153,17 @@ func (p *sparser) parseSpan(t SpanType) (s *Span) {
 
 	for {
 		switch p.tok {
-		case sitemEOF:
+		case tokEOF:
 			s.TokEnd = p.pos
 			return
-		case sitemSpoiler:
+		case tokSpoiler:
 			if t == SpanSpoiler {
 				p.next()
 				s.TokEnd = p.pos
 				return
 			}
 			s.Insert(p.parseSpan(SpanSpoiler))
-		case sitemPunct:
+		case tokPunct:
 			if p.lit == "`" {
 				s.Insert(p.parseCode())
 			} else if p.lit == "@" {
@@ -173,7 +173,7 @@ func (p *sparser) parseSpan(t SpanType) (s *Span) {
 			} else {
 				p.next()
 			}
-		case sitemWord:
+		case tokWord:
 			if _, ok := p.ctx.tags[p.lit]; ok {
 				s.Insert(p.parseTag())
 			} else if _, ok := p.ctx.emotes[p.lit]; ok {
@@ -183,12 +183,12 @@ func (p *sparser) parseSpan(t SpanType) (s *Span) {
 			} else {
 				p.next()
 			}
-		case sitemWhitespace:
+		case tokWhitespace:
 			p.next()
 		}
 	}
 }
 
-func (p *sparser) parseMessage() (s *Span) {
+func (p *parser) parseMessage() (s *Span) {
 	return p.parseSpan(SpanMessage)
 }

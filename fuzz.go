@@ -4,7 +4,7 @@ package parser
 
 // Fuzz is used by go-fuzz
 func Fuzz(data []byte) int {
-	tokens := slex(string(data))
+	tokens := lex(string(data))
 
 	ctx := NewParserContext(ParserContextValues{
 		Emotes:         emotes,
