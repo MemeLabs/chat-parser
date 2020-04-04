@@ -68,7 +68,7 @@ func (p *parser) parseEmote() (e *Emote) {
 		p.next()
 		e.TokEnd = p.pos
 
-		if p.lit != ":" {
+		if p.tok != tokColon {
 			return
 		}
 		p.next()
@@ -125,7 +125,7 @@ func (p *parser) parseCode() (s *Span) {
 
 	for p.tok != tokEOF {
 		p.next()
-		if p.lit == "`" {
+		if p.tok == tokBacktick {
 			p.next()
 			break
 		}
@@ -146,7 +146,7 @@ func (p *parser) parseSpan(t SpanType) (s *Span) {
 
 	p.next()
 
-	if p.lit == ">" && t == SpanMessage {
+	if p.tok == tokRAngle && t == SpanMessage {
 		s.Type = SpanGreentext
 		p.next()
 	}
@@ -163,13 +163,11 @@ func (p *parser) parseSpan(t SpanType) (s *Span) {
 				return
 			}
 			s.Insert(p.parseSpan(SpanSpoiler))
-		case tokPunct:
-			if p.lit == "`" {
-				s.Insert(p.parseCode())
-			} else if p.lit == "@" {
-				if n := p.tryParseAtNick(); n != nil {
-					s.Insert(n)
-				}
+		case tokBacktick:
+			s.Insert(p.parseCode())
+		case tokAt:
+			if n := p.tryParseAtNick(); n != nil {
+				s.Insert(n)
 			} else {
 				p.next()
 			}
@@ -183,7 +181,7 @@ func (p *parser) parseSpan(t SpanType) (s *Span) {
 			} else {
 				p.next()
 			}
-		case tokWhitespace:
+		default:
 			p.next()
 		}
 	}

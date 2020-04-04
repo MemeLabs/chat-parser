@@ -25,10 +25,10 @@ func mkItem(typ tokType, pos int, text string) token {
 var lexTests = []lexTest{
 	{"at without username in spoiler", "||`||||@||", []token{
 		mkItem(tokSpoiler, 0, "||"),
-		mkItem(tokPunct, 2, "`"),
+		mkItem(tokBacktick, 2, "`"),
 		mkItem(tokSpoiler, 3, "||"),
 		mkItem(tokSpoiler, 5, "||"),
-		mkItem(tokPunct, 7, "@"),
+		mkItem(tokAt, 7, "@"),
 		mkItem(tokSpoiler, 8, "||"),
 		mkItem(tokEOF, 10, ""),
 	}},
@@ -39,11 +39,11 @@ var lexTests = []lexTest{
 	{"text with code", "text `with code`", []token{
 		mkItem(tokWord, 0, "text"),
 		mkItem(tokWhitespace, 4, " "),
-		mkItem(tokPunct, 5, "`"),
+		mkItem(tokBacktick, 5, "`"),
 		mkItem(tokWord, 6, "with"),
 		mkItem(tokWhitespace, 10, " "),
 		mkItem(tokWord, 11, "code"),
-		mkItem(tokPunct, 15, "`"),
+		mkItem(tokBacktick, 15, "`"),
 		mkItem(tokEOF, 16, ""),
 	}},
 	{"underscores", "words_with_underscores", []token{

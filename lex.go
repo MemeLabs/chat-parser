@@ -3,6 +3,8 @@ package parser
 import (
 	"fmt"
 	"unicode"
+
+	"golang.org/x/text/unicode/rangetable"
 )
 
 const eof rune = -1
@@ -15,6 +17,10 @@ const (
 	tokPunct
 	tokWhitespace
 	tokWord
+	tokBacktick
+	tokColon
+	tokRAngle
+	tokAt
 )
 
 var tokNames = map[tokType]string{
@@ -23,6 +29,10 @@ var tokNames = map[tokType]string{
 	tokPunct:      "Punct",
 	tokWhitespace: "Whitespace",
 	tokWord:       "Word",
+	tokBacktick:   "Backtick",
+	tokColon:      "Colon",
+	tokRAngle:     "RAngle",
+	tokAt:         "At",
 }
 
 func (i tokType) String() string {
@@ -80,7 +90,7 @@ func (l *lexer) emit(t tokType) {
 	l.start = l.pos + 1
 }
 
-var nonWord = []*unicode.RangeTable{
+var nonWord = rangetable.Merge(
 	unicode.Dash,
 	unicode.Hyphen,
 	unicode.Other_Math,
@@ -90,7 +100,7 @@ var nonWord = []*unicode.RangeTable{
 	unicode.Sentence_Terminal,
 	unicode.Terminal_Punctuation,
 	unicode.White_Space,
-}
+)
 
 func (l *lexer) run() {
 	for {
@@ -100,6 +110,14 @@ func (l *lexer) run() {
 			l.backup()
 			l.emit(tokEOF)
 			return
+		case '`':
+			l.emit(tokBacktick)
+		case ':':
+			l.emit(tokColon)
+		case '>':
+			l.emit(tokRAngle)
+		case '@':
+			l.emit(tokAt)
 		case '|':
 			if l.accept(func(r rune) bool { return r == '|' }) {
 				l.emit(tokSpoiler)
@@ -111,10 +129,10 @@ func (l *lexer) run() {
 				for l.accept(func(r rune) bool { return r != eof && unicode.IsSpace(r) }) {
 				}
 				l.emit(tokWhitespace)
-			} else if unicode.IsOneOf(nonWord, r) {
+			} else if unicode.Is(nonWord, r) {
 				l.emit(tokPunct)
 			} else {
-				for l.accept(func(r rune) bool { return r != eof && !unicode.IsOneOf(nonWord, r) }) {
+				for l.accept(func(r rune) bool { return r != eof && !unicode.Is(nonWord, r) }) {
 				}
 				l.emit(tokWord)
 			}
