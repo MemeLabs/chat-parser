@@ -68,6 +68,10 @@ var lexTests = []lexTest{
 		mkItem(tokWord, 11, "𒈙𒐫﷽"),
 		mkItem(tokEOF, 14, ""),
 	}},
+	{"at", "@", []token{
+		mkItem(tokAt, 0, "@"),
+		mkItem(tokEOF, 1, ""),
+	}},
 }
 
 func TestLex(t *testing.T) {

@@ -168,8 +168,6 @@ func (p *parser) parseSpan(t SpanType) (s *Span) {
 		case tokAt:
 			if n := p.tryParseAtNick(); n != nil {
 				s.Insert(n)
-			} else {
-				p.next()
 			}
 		case tokWord:
 			if _, ok := p.ctx.tags[p.lit]; ok {

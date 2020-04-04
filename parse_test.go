@@ -537,6 +537,11 @@ var parseTests = []parseTest{
 		TokPos: 0,
 		TokEnd: 6,
 	}},
+	{"at", "@", &Span{
+		Type:   SpanMessage,
+		TokPos: 0,
+		TokEnd: 1,
+	}},
 }
 
 func TestParse(t *testing.T) {
