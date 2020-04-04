@@ -78,13 +78,23 @@ func TestLex(t *testing.T) {
 	for _, test := range lexTests {
 		toks := lex(test.input)
 
-		// if test.toks != nil {
 		if len(test.toks) != 0 {
 			if !reflect.DeepEqual(test.toks, toks) {
 				t.Errorf("%s: got\n%s\nexpected\n%s", test.name, spew.Sdump(toks), spew.Sdump(test.toks))
 			}
 		} else {
 			log.Println(spew.Sdump(toks))
+		}
+	}
+}
+
+func lex(input string) (tokens []token) {
+	l := NewLexer(input)
+	for {
+		t := l.Next()
+		tokens = append(tokens, t)
+		if t.typ == tokEOF {
+			return
 		}
 	}
 }

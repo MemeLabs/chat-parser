@@ -545,18 +545,16 @@ var parseTests = []parseTest{
 }
 
 func TestParse(t *testing.T) {
+	ctx := NewParserContext(ParserContextValues{
+		Emotes:         []string{"PEPE", "CuckCrab"},
+		EmoteModifiers: []string{"wide", "rustle", "spin"},
+		Nicks:          []string{"abeous", "jeanpierrepratt", "wrxst"},
+		Tags:           []string{"nsfw"},
+	})
+
 	for _, test := range parseTests {
-		tokens := lex(test.input)
-
-		ctx := NewParserContext(ParserContextValues{
-			Emotes:         []string{"PEPE", "CuckCrab"},
-			EmoteModifiers: []string{"wide", "rustle", "spin"},
-			Nicks:          []string{"abeous", "jeanpierrepratt", "wrxst"},
-			Tags:           []string{"nsfw"},
-		})
-		p := NewParser(ctx, tokens)
-
-		ast := p.parseMessage()
+		p := NewParser(ctx, NewLexer(test.input))
+		ast := p.ParseMessage()
 
 		if test.ast != nil {
 			if !reflect.DeepEqual(test.ast, ast) {
@@ -565,5 +563,22 @@ func TestParse(t *testing.T) {
 		} else {
 			log.Println(spew.Sdump(ast))
 		}
+	}
+}
+
+func BenchmarkParse(b *testing.B) {
+	ctx := NewParserContext(ParserContextValues{
+		Emotes:         []string{"PEPE", "CuckCrab"},
+		EmoteModifiers: []string{"wide", "rustle", "spin"},
+		Nicks:          []string{"abeous", "jeanpierrepratt", "wrxst"},
+		Tags:           []string{"nsfw"},
+	})
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		test := parseTests[i%len(parseTests)]
+		p := NewParser(ctx, NewLexer(test.input))
+		ast := p.ParseMessage()
+		_ = ast
 	}
 }

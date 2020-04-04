@@ -49,9 +49,15 @@ func (i token) String() string {
 	return fmt.Sprintf("(%s %d %s)", i.typ, i.pos, string(i.val))
 }
 
+func NewLexer(input string) lexer {
+	return lexer{
+		input: []rune(input),
+		pos:   -1,
+	}
+}
+
 type lexer struct {
 	input      []rune
-	tokens     []token
 	start, pos int
 }
 
@@ -67,12 +73,6 @@ func (l *lexer) backup() {
 	l.pos--
 }
 
-func (l *lexer) peek() rune {
-	r := l.next()
-	l.backup()
-	return r
-}
-
 func (l *lexer) accept(test func(r rune) bool) bool {
 	if test(l.next()) {
 		return true
@@ -81,13 +81,14 @@ func (l *lexer) accept(test func(r rune) bool) bool {
 	return false
 }
 
-func (l *lexer) emit(t tokType) {
-	l.tokens = append(l.tokens, token{
+func (l *lexer) emit(t tokType) (tok token) {
+	tok = token{
 		typ: t,
 		pos: l.start,
 		val: l.input[l.start : l.pos+1],
-	})
+	}
 	l.start = l.pos + 1
+	return
 }
 
 var nonWord = rangetable.Merge(
@@ -102,49 +103,37 @@ var nonWord = rangetable.Merge(
 	unicode.White_Space,
 )
 
-func (l *lexer) run() {
-	for {
-		r := l.next()
-		switch r {
-		case eof:
-			l.backup()
-			l.emit(tokEOF)
-			return
-		case '`':
-			l.emit(tokBacktick)
-		case ':':
-			l.emit(tokColon)
-		case '>':
-			l.emit(tokRAngle)
-		case '@':
-			l.emit(tokAt)
-		case '|':
-			if l.accept(func(r rune) bool { return r == '|' }) {
-				l.emit(tokSpoiler)
-				continue
+func (l *lexer) Next() token {
+	r := l.next()
+	switch r {
+	case eof:
+		l.backup()
+		return l.emit(tokEOF)
+	case '`':
+		return l.emit(tokBacktick)
+	case ':':
+		return l.emit(tokColon)
+	case '>':
+		return l.emit(tokRAngle)
+	case '@':
+		return l.emit(tokAt)
+	case '|':
+		if l.accept(func(r rune) bool { return r == '|' }) {
+			return l.emit(tokSpoiler)
+		} else {
+			return l.emit(tokPunct)
+		}
+	default:
+		if unicode.IsSpace(r) {
+			for l.accept(func(r rune) bool { return unicode.IsSpace(r) }) {
 			}
-			fallthrough
-		default:
-			if unicode.IsSpace(r) {
-				for l.accept(func(r rune) bool { return r != eof && unicode.IsSpace(r) }) {
-				}
-				l.emit(tokWhitespace)
-			} else if unicode.Is(nonWord, r) {
-				l.emit(tokPunct)
-			} else {
-				for l.accept(func(r rune) bool { return r != eof && !unicode.Is(nonWord, r) }) {
-				}
-				l.emit(tokWord)
+			return l.emit(tokWhitespace)
+		} else if unicode.Is(nonWord, r) {
+			return l.emit(tokPunct)
+		} else {
+			for l.accept(func(r rune) bool { return r != eof && !unicode.Is(nonWord, r) }) {
 			}
+			return l.emit(tokWord)
 		}
 	}
-}
-
-func lex(input string) []token {
-	l := lexer{
-		pos:   -1,
-		input: []rune(input),
-	}
-	l.run()
-	return l.tokens
 }

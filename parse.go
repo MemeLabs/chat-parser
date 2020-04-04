@@ -31,36 +31,32 @@ type parserContext struct {
 	tags           map[string]struct{}
 }
 
-func NewParser(ctx *parserContext, tokens []token) *parser {
+func NewParser(ctx *parserContext, l lexer) *parser {
 	return &parser{
-		ctx:    ctx,
-		tokens: tokens,
-		i:      -1,
+		ctx:   ctx,
+		lexer: l,
 	}
 }
 
 type parser struct {
-	ctx *parserContext
-
-	tokens []token
-	i      int
+	ctx   *parserContext
+	lexer lexer
 
 	pos int
 	tok tokType
-	lit string
+	lit []rune
 }
 
 func (p *parser) next() {
-	p.i++
-	t := p.tokens[p.i]
+	t := p.lexer.Next()
 	p.tok = t.typ
 	p.pos = t.pos
-	p.lit = string(t.val)
+	p.lit = t.val
 }
 
 func (p *parser) parseEmote() (e *Emote) {
 	e = &Emote{
-		Name:   p.lit,
+		Name:   string(p.lit),
 		TokPos: p.pos,
 	}
 
@@ -73,55 +69,57 @@ func (p *parser) parseEmote() (e *Emote) {
 		}
 		p.next()
 
-		if _, ok := p.ctx.emoteModifiers[p.lit]; !ok {
+		modifier := string(p.lit)
+		if _, ok := p.ctx.emoteModifiers[modifier]; !ok {
 			return
 		}
-		e.InsertModifier(p.lit)
+		e.InsertModifier(modifier)
 	}
 }
 
-func (p *parser) parseTag() (e *Tag) {
-	pos := p.pos
-	name := p.lit
+func (p *parser) parseTag() (t *Tag) {
+	t = &Tag{
+		Name:   string(p.lit),
+		TokPos: p.pos,
+	}
 
 	p.next()
 
-	return &Tag{
-		Name:   name,
-		TokPos: pos,
-		TokEnd: p.pos,
-	}
+	t.TokEnd = p.pos
+	return
 }
 
-func (p *parser) parseNick() (e *Nick) {
-	pos := p.pos
-	nick := p.lit
+func (p *parser) parseNick() (n *Nick) {
+	n = &Nick{
+		Nick:   string(p.lit),
+		TokPos: p.pos,
+	}
 
 	p.next()
 
-	return &Nick{
-		Nick:   nick,
-		TokPos: pos,
-		TokEnd: p.pos,
-	}
+	n.TokEnd = p.pos
+	return
 }
 
-func (p *parser) tryParseAtNick() (e *Nick) {
+func (p *parser) tryParseAtNick() (n *Nick) {
 	pos := p.pos
 
 	p.next()
 
-	if _, ok := p.ctx.nicks[p.lit]; !ok {
+	if _, ok := p.ctx.nicks[string(p.lit)]; !ok {
 		return
 	}
 
-	e = p.parseNick()
-	e.TokPos = pos
+	n = p.parseNick()
+	n.TokPos = pos
 	return
 }
 
 func (p *parser) parseCode() (s *Span) {
-	pos := p.pos
+	s = &Span{
+		Type:   SpanCode,
+		TokPos: p.pos,
+	}
 
 	for p.tok != tokEOF {
 		p.next()
@@ -131,11 +129,8 @@ func (p *parser) parseCode() (s *Span) {
 		}
 	}
 
-	return &Span{
-		Type:   SpanCode,
-		TokPos: pos,
-		TokEnd: p.pos,
-	}
+	s.TokEnd = p.pos
+	return
 }
 
 func (p *parser) parseSpan(t SpanType) (s *Span) {
@@ -170,11 +165,12 @@ func (p *parser) parseSpan(t SpanType) (s *Span) {
 				s.Insert(n)
 			}
 		case tokWord:
-			if _, ok := p.ctx.tags[p.lit]; ok {
+			word := string(p.lit)
+			if _, ok := p.ctx.tags[word]; ok {
 				s.Insert(p.parseTag())
-			} else if _, ok := p.ctx.emotes[p.lit]; ok {
+			} else if _, ok := p.ctx.emotes[word]; ok {
 				s.Insert(p.parseEmote())
-			} else if _, ok := p.ctx.nicks[p.lit]; ok {
+			} else if _, ok := p.ctx.nicks[word]; ok {
 				s.Insert(p.parseNick())
 			} else {
 				p.next()
@@ -185,6 +181,6 @@ func (p *parser) parseSpan(t SpanType) (s *Span) {
 	}
 }
 
-func (p *parser) parseMessage() (s *Span) {
+func (p *parser) ParseMessage() (s *Span) {
 	return p.parseSpan(SpanMessage)
 }

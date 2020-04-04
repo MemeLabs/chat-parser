@@ -4,17 +4,15 @@ package parser
 
 // Fuzz is used by go-fuzz
 func Fuzz(data []byte) int {
-	tokens := lex(string(data))
-
 	ctx := NewParserContext(ParserContextValues{
 		Emotes:         emotes,
 		EmoteModifiers: modifiers,
 		Nicks:          names,
 		Tags:           []string{"nsfw", "weeb", "nsfl", "spoiler"},
 	})
-	p := NewParser(ctx, tokens)
+	p := NewParser(ctx, NewLexer(string(data)))
 
-	ast := p.parseMessage()
+	ast := p.ParseMessage()
 	if ast.Nodes != nil {
 		// increase weight of "interesting" content
 		return 1
