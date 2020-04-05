@@ -1,5 +1,9 @@
 package parser
 
+import (
+	"sort"
+)
+
 type ParserContextValues struct {
 	Emotes         []string
 	EmoteModifiers []string
@@ -7,28 +11,63 @@ type ParserContextValues struct {
 	Tags           []string
 }
 
-func toMap(arr []string) map[string]struct{} {
-	m := map[string]struct{}{}
-	for _, v := range arr {
-		m[v] = struct{}{}
+func toRuneSlices(arr []string) (s [][]rune) {
+	s = make([][]rune, len(arr))
+	for i, v := range arr {
+		s[i] = []rune(v)
 	}
-	return m
+	sort.Sort(runeSlices(s))
+	return
 }
+
+func compareRuneSlices(a, b []rune) int {
+	if len(a) != len(b) {
+		return len(a) - len(b)
+	}
+	for i := 0; i < len(a); i++ {
+		if a[i] != b[i] {
+			return int(a[i] - b[i])
+		}
+	}
+	return 0
+}
+
+func inRuneSlices(r [][]rune, v []rune) bool {
+	var min, mid int
+	max := len(r)
+
+	for min != max {
+		mid = (max + min) >> 1
+		if compareRuneSlices(r[mid], v) < 0 {
+			min = mid + 1
+		} else {
+			max = mid
+		}
+	}
+
+	return min != len(r) && compareRuneSlices(r[min], v) == 0
+}
+
+type runeSlices [][]rune
+
+func (a runeSlices) Len() int           { return len(a) }
+func (a runeSlices) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a runeSlices) Less(i, j int) bool { return compareRuneSlices(a[i], a[j]) < 0 }
 
 func NewParserContext(opt ParserContextValues) *parserContext {
 	return &parserContext{
-		emotes:         toMap(opt.Emotes),
-		emoteModifiers: toMap(opt.EmoteModifiers),
-		nicks:          toMap(opt.Nicks),
-		tags:           toMap(opt.Tags),
+		emotes:         toRuneSlices(opt.Emotes),
+		emoteModifiers: toRuneSlices(opt.EmoteModifiers),
+		nicks:          toRuneSlices(opt.Nicks),
+		tags:           toRuneSlices(opt.Tags),
 	}
 }
 
 type parserContext struct {
-	emotes         map[string]struct{}
-	emoteModifiers map[string]struct{}
-	nicks          map[string]struct{}
-	tags           map[string]struct{}
+	emotes         [][]rune
+	emoteModifiers [][]rune
+	nicks          [][]rune
+	tags           [][]rune
 }
 
 func NewParser(ctx *parserContext, l lexer) *parser {
@@ -69,11 +108,10 @@ func (p *parser) parseEmote() (e *Emote) {
 		}
 		p.next()
 
-		modifier := string(p.lit)
-		if _, ok := p.ctx.emoteModifiers[modifier]; !ok {
+		if !inRuneSlices(p.ctx.emoteModifiers, p.lit) {
 			return
 		}
-		e.InsertModifier(modifier)
+		e.InsertModifier(string(p.lit))
 	}
 }
 
@@ -106,7 +144,7 @@ func (p *parser) tryParseAtNick() (n *Nick) {
 
 	p.next()
 
-	if _, ok := p.ctx.nicks[string(p.lit)]; !ok {
+	if !inRuneSlices(p.ctx.nicks, p.lit) {
 		return
 	}
 
@@ -165,12 +203,11 @@ func (p *parser) parseSpan(t SpanType) (s *Span) {
 				s.Insert(n)
 			}
 		case tokWord:
-			word := string(p.lit)
-			if _, ok := p.ctx.tags[word]; ok {
+			if inRuneSlices(p.ctx.tags, p.lit) {
 				s.Insert(p.parseTag())
-			} else if _, ok := p.ctx.emotes[word]; ok {
+			} else if inRuneSlices(p.ctx.emotes, p.lit) {
 				s.Insert(p.parseEmote())
-			} else if _, ok := p.ctx.nicks[word]; ok {
+			} else if inRuneSlices(p.ctx.nicks, p.lit) {
 				s.Insert(p.parseNick())
 			} else {
 				p.next()
