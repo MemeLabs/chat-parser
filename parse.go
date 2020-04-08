@@ -54,8 +54,8 @@ func (a runeSlices) Len() int           { return len(a) }
 func (a runeSlices) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a runeSlices) Less(i, j int) bool { return compareRuneSlices(a[i], a[j]) < 0 }
 
-func NewParserContext(opt ParserContextValues) *parserContext {
-	return &parserContext{
+func NewParserContext(opt ParserContextValues) *ParserContext {
+	return &ParserContext{
 		emotes:         toRuneSlices(opt.Emotes),
 		emoteModifiers: toRuneSlices(opt.EmoteModifiers),
 		nicks:          toRuneSlices(opt.Nicks),
@@ -63,14 +63,14 @@ func NewParserContext(opt ParserContextValues) *parserContext {
 	}
 }
 
-type parserContext struct {
+type ParserContext struct {
 	emotes         [][]rune
 	emoteModifiers [][]rune
 	nicks          [][]rune
 	tags           [][]rune
 }
 
-func NewParser(ctx *parserContext, l lexer) *parser {
+func NewParser(ctx *ParserContext, l lexer) *parser {
 	return &parser{
 		ctx:   ctx,
 		lexer: l,
@@ -78,7 +78,7 @@ func NewParser(ctx *parserContext, l lexer) *parser {
 }
 
 type parser struct {
-	ctx   *parserContext
+	ctx   *ParserContext
 	lexer lexer
 
 	pos int
