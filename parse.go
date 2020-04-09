@@ -70,14 +70,14 @@ type ParserContext struct {
 	tags           [][]rune
 }
 
-func NewParser(ctx *ParserContext, l lexer) *parser {
-	return &parser{
+func NewParser(ctx *ParserContext, l lexer) *Parser {
+	return &Parser{
 		ctx:   ctx,
 		lexer: l,
 	}
 }
 
-type parser struct {
+type Parser struct {
 	ctx   *ParserContext
 	lexer lexer
 
@@ -86,14 +86,14 @@ type parser struct {
 	lit []rune
 }
 
-func (p *parser) next() {
+func (p *Parser) next() {
 	t := p.lexer.Next()
 	p.tok = t.typ
 	p.pos = t.pos
 	p.lit = t.val
 }
 
-func (p *parser) parseEmote() (e *Emote) {
+func (p *Parser) parseEmote() (e *Emote) {
 	e = &Emote{
 		Name:   string(p.lit),
 		TokPos: p.pos,
@@ -115,7 +115,7 @@ func (p *parser) parseEmote() (e *Emote) {
 	}
 }
 
-func (p *parser) parseTag() (t *Tag) {
+func (p *Parser) parseTag() (t *Tag) {
 	t = &Tag{
 		Name:   string(p.lit),
 		TokPos: p.pos,
@@ -127,7 +127,7 @@ func (p *parser) parseTag() (t *Tag) {
 	return
 }
 
-func (p *parser) parseNick() (n *Nick) {
+func (p *Parser) parseNick() (n *Nick) {
 	n = &Nick{
 		Nick:   string(p.lit),
 		TokPos: p.pos,
@@ -139,7 +139,7 @@ func (p *parser) parseNick() (n *Nick) {
 	return
 }
 
-func (p *parser) tryParseAtNick() (n *Nick) {
+func (p *Parser) tryParseAtNick() (n *Nick) {
 	pos := p.pos
 
 	p.next()
@@ -153,7 +153,7 @@ func (p *parser) tryParseAtNick() (n *Nick) {
 	return
 }
 
-func (p *parser) parseCode() (s *Span) {
+func (p *Parser) parseCode() (s *Span) {
 	s = &Span{
 		Type:   SpanCode,
 		TokPos: p.pos,
@@ -171,7 +171,7 @@ func (p *parser) parseCode() (s *Span) {
 	return
 }
 
-func (p *parser) parseSpan(t SpanType) (s *Span) {
+func (p *Parser) parseSpan(t SpanType) (s *Span) {
 	s = &Span{
 		Type:   t,
 		TokPos: p.pos,
@@ -218,6 +218,6 @@ func (p *parser) parseSpan(t SpanType) (s *Span) {
 	}
 }
 
-func (p *parser) ParseMessage() (s *Span) {
+func (p *Parser) ParseMessage() (s *Span) {
 	return p.parseSpan(SpanMessage)
 }
