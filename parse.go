@@ -54,6 +54,8 @@ func (a runeSlices) Len() int           { return len(a) }
 func (a runeSlices) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a runeSlices) Less(i, j int) bool { return compareRuneSlices(a[i], a[j]) < 0 }
 
+var meCmd = []rune("me")
+
 func NewParserContext(opt ParserContextValues) *ParserContext {
 	return &ParserContext{
 		emotes:         toRuneSlices(opt.Emotes),
@@ -179,9 +181,20 @@ func (p *Parser) parseSpan(t SpanType) (s *Span) {
 
 	p.next()
 
-	if p.tok == tokRAngle && t == SpanMessage {
-		s.Type = SpanGreentext
-		p.next()
+	if t == SpanMessage {
+		switch p.tok {
+		case tokRAngle:
+			s.Type = SpanGreentext
+			p.next()
+		case tokRSlash:
+			p.next()
+			if compareRuneSlices(p.lit, meCmd) == 0 {
+				s.Type = SpanMe
+				p.next()
+				p.next()
+				s.TokPos = p.pos
+			}
+		}
 	}
 
 	for {

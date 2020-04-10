@@ -13,6 +13,7 @@ const (
 	SpanCode
 	SpanGreentext
 	SpanSpoiler
+	SpanMe
 )
 
 var spanTypeNames = map[SpanType]string{
@@ -21,6 +22,7 @@ var spanTypeNames = map[SpanType]string{
 	SpanCode:      "Code",
 	SpanGreentext: "Greentext",
 	SpanSpoiler:   "Spoiler",
+	SpanMe:        "Me",
 }
 
 func (t SpanType) String() string {

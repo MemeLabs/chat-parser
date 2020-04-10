@@ -21,6 +21,7 @@ const (
 	tokColon
 	tokRAngle
 	tokAt
+	tokRSlash
 )
 
 var tokNames = map[tokType]string{
@@ -33,6 +34,7 @@ var tokNames = map[tokType]string{
 	tokColon:      "Colon",
 	tokRAngle:     "RAngle",
 	tokAt:         "At",
+	tokRSlash:     "RSlash",
 }
 
 func (i tokType) String() string {
@@ -117,6 +119,8 @@ func (l *lexer) Next() token {
 		return l.emit(tokRAngle)
 	case '@':
 		return l.emit(tokAt)
+	case '/':
+		return l.emit(tokRSlash)
 	case '|':
 		if l.accept(func(r rune) bool { return r == '|' }) {
 			return l.emit(tokSpoiler)

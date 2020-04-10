@@ -1,8 +1,11 @@
 package parser
 
 import (
+	"io/ioutil"
 	"log"
+	"path"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
@@ -542,6 +545,16 @@ var parseTests = []parseTest{
 		TokPos: 0,
 		TokEnd: 1,
 	}},
+	{"me", "/me test", &Span{
+		Type:   SpanMe,
+		TokPos: 4,
+		TokEnd: 8,
+	}},
+	{"me with multiple spaces", "/me    test", &Span{
+		Type:   SpanMe,
+		TokPos: 7,
+		TokEnd: 11,
+	}},
 }
 
 func TestParse(t *testing.T) {
@@ -578,6 +591,28 @@ func BenchmarkParse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		test := parseTests[i%len(parseTests)]
 		p := NewParser(ctx, NewLexer(test.input))
+		ast := p.ParseMessage()
+		_ = ast
+	}
+}
+
+func BenchmarkParseCorpus(b *testing.B) {
+	samples := make([]string, 300)
+	for i := 0; i < len(samples); i++ {
+		d, _ := ioutil.ReadFile(path.Join(".", "corpus", strconv.Itoa(i)))
+		samples[i] = string(d)
+	}
+
+	ctx := NewParserContext(ParserContextValues{
+		Emotes:         []string{"PEPE", "CuckCrab"},
+		EmoteModifiers: []string{"wide", "rustle", "spin"},
+		Nicks:          []string{"abeous", "jeanpierrepratt", "wrxst"},
+		Tags:           []string{"nsfw"},
+	})
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		p := NewParser(ctx, NewLexer(samples[i%len(samples)]))
 		ast := p.ParseMessage()
 		_ = ast
 	}
