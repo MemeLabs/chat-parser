@@ -505,7 +505,6 @@ var parseTests = []parseTest{
 		TokPos: 0,
 		TokEnd: 13,
 	}},
-	{"url", "https://unicode.org/reports/tr44/#Grapheme_Extend", nil},
 	{"emoji", "🙈🙉🙊", &Span{
 		Type:   SpanMessage,
 		TokPos: 0,
@@ -554,6 +553,18 @@ var parseTests = []parseTest{
 		Type:   SpanMe,
 		TokPos: 7,
 		TokEnd: 11,
+	}},
+	{"escape sequences", "\\` test `co\\`de`", &Span{
+		Type: SpanMessage,
+		Nodes: []Node{
+			&Span{
+				Type:   SpanCode,
+				TokPos: 8,
+				TokEnd: 16,
+			},
+		},
+		TokPos: 0,
+		TokEnd: 16,
 	}},
 }
 
