@@ -566,6 +566,11 @@ var parseTests = []parseTest{
 		TokPos: 0,
 		TokEnd: 16,
 	}},
+	{"backslash", "\\", &Span{
+		Type:   SpanMessage,
+		TokPos: 0,
+		TokEnd: 1,
+	}},
 }
 
 func TestParse(t *testing.T) {

@@ -124,8 +124,11 @@ func (l *lexer) Next() token {
 	case '/':
 		return l.emit(tokRSlash)
 	case '\\':
-		l.next()
-		return l.emit(tokEscapeSeq)
+		if l.accept(func(r rune) bool { return r != eof }) {
+			return l.emit(tokEscapeSeq)
+		} else {
+			return l.emit(tokPunct)
+		}
 	case '|':
 		if l.accept(func(r rune) bool { return r == '|' }) {
 			return l.emit(tokSpoiler)
