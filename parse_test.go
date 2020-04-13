@@ -590,6 +590,34 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestRuneIndex(t *testing.T) {
+	v := NewRuneIndex(RunesFromStrings([]string{"g", "d", "a", "c", "f"}))
+
+	expected := [][]rune{{'a'}, {'c'}, {'d'}, {'f'}, {'g'}}
+	if !reflect.DeepEqual(expected, v.values) {
+		t.Error("new rune index should be sorted")
+		t.FailNow()
+	}
+
+	v.Insert([]rune("b"))
+	v.Insert([]rune("e"))
+
+	expected = [][]rune{{'a'}, {'b'}, {'c'}, {'d'}, {'e'}, {'f'}, {'g'}}
+	if !reflect.DeepEqual(expected, v.values) {
+		t.Error("rune index should remain sorted after inserting values")
+		t.FailNow()
+	}
+
+	v.Remove([]rune("c"))
+	v.Remove([]rune("f"))
+
+	expected = [][]rune{{'a'}, {'b'}, {'d'}, {'e'}, {'g'}}
+	if !reflect.DeepEqual(expected, v.values) {
+		t.Error("rune index should remain sorted after inserting values")
+		t.FailNow()
+	}
+}
+
 func BenchmarkParse(b *testing.B) {
 	ctx := NewParserContext(ParserContextValues{
 		Emotes:         []string{"PEPE", "CuckCrab"},

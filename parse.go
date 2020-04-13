@@ -2,23 +2,80 @@ package parser
 
 import (
 	"sort"
+	"sync"
 )
 
-type ParserContextValues struct {
-	Emotes         []string
-	EmoteModifiers []string
-	Nicks          []string
-	Tags           []string
+func NewRuneIndex(values [][]rune) *RuneIndex {
+	sort.Sort(runeSlices(values))
+	return &RuneIndex{values: values}
 }
 
-func toRuneSlices(arr []string) (s [][]rune) {
-	s = make([][]rune, len(arr))
-	for i, v := range arr {
-		s[i] = []rune(v)
-	}
-	sort.Sort(runeSlices(s))
-	return
+type RuneIndex struct {
+	sync.Mutex
+	values [][]rune
 }
+
+func (r *RuneIndex) findIndex(v []rune) int {
+	var min, mid int
+	max := len(r.values)
+
+	for min != max {
+		mid = (max + min) >> 1
+		if compareRuneSlices(r.values[mid], v) < 0 {
+			min = mid + 1
+		} else {
+			max = mid
+		}
+	}
+
+	return min
+}
+
+func (r *RuneIndex) Contains(v []rune) bool {
+	r.Lock()
+	defer r.Unlock()
+
+	i := r.findIndex(v)
+	return i != len(r.values) && compareRuneSlices(r.values[i], v) == 0
+}
+
+func (r *RuneIndex) Insert(v []rune) {
+	r.Lock()
+	defer r.Unlock()
+
+	i := r.findIndex(v)
+	r.values = append(r.values, v)
+	if i != len(r.values)-1 {
+		copy(r.values[i+1:], r.values[i:])
+		r.values[i] = v
+	}
+}
+
+func (r *RuneIndex) Remove(v []rune) {
+	r.Lock()
+	defer r.Unlock()
+
+	i := r.findIndex(v)
+	if i != len(r.values) {
+		copy(r.values[i:], r.values[i+1:])
+		r.values = r.values[:len(r.values)-1]
+	}
+}
+
+func (r *RuneIndex) Replace(values [][]rune) {
+	sort.Sort(runeSlices(values))
+
+	r.Lock()
+	defer r.Unlock()
+
+	r.values = values
+}
+
+type runeSlices [][]rune
+
+func (a runeSlices) Len() int           { return len(a) }
+func (a runeSlices) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a runeSlices) Less(i, j int) bool { return compareRuneSlices(a[i], a[j]) < 0 }
 
 func compareRuneSlices(a, b []rune) int {
 	if len(a) != len(b) {
@@ -32,45 +89,38 @@ func compareRuneSlices(a, b []rune) int {
 	return 0
 }
 
-func inRuneSlices(r [][]rune, v []rune) bool {
-	var min, mid int
-	max := len(r)
-
-	for min != max {
-		mid = (max + min) >> 1
-		if compareRuneSlices(r[mid], v) < 0 {
-			min = mid + 1
-		} else {
-			max = mid
-		}
+func RunesFromStrings(s []string) (r [][]rune) {
+	r = make([][]rune, len(s))
+	for i, v := range s {
+		r[i] = []rune(v)
 	}
-
-	return min != len(r) && compareRuneSlices(r[min], v) == 0
+	return
 }
 
-type runeSlices [][]rune
-
-func (a runeSlices) Len() int           { return len(a) }
-func (a runeSlices) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a runeSlices) Less(i, j int) bool { return compareRuneSlices(a[i], a[j]) < 0 }
-
-var meCmd = []rune("me")
+type ParserContextValues struct {
+	Emotes         []string
+	EmoteModifiers []string
+	Nicks          []string
+	Tags           []string
+}
 
 func NewParserContext(opt ParserContextValues) *ParserContext {
 	return &ParserContext{
-		emotes:         toRuneSlices(opt.Emotes),
-		emoteModifiers: toRuneSlices(opt.EmoteModifiers),
-		nicks:          toRuneSlices(opt.Nicks),
-		tags:           toRuneSlices(opt.Tags),
+		Emotes:         NewRuneIndex(RunesFromStrings(opt.Emotes)),
+		EmoteModifiers: NewRuneIndex(RunesFromStrings(opt.EmoteModifiers)),
+		Nicks:          NewRuneIndex(RunesFromStrings(opt.Nicks)),
+		Tags:           NewRuneIndex(RunesFromStrings(opt.Tags)),
 	}
 }
 
 type ParserContext struct {
-	emotes         [][]rune
-	emoteModifiers [][]rune
-	nicks          [][]rune
-	tags           [][]rune
+	Emotes         *RuneIndex
+	EmoteModifiers *RuneIndex
+	Nicks          *RuneIndex
+	Tags           *RuneIndex
 }
+
+var meCmd = []rune("me")
 
 func NewParser(ctx *ParserContext, l lexer) *Parser {
 	return &Parser{
@@ -110,7 +160,7 @@ func (p *Parser) parseEmote() (e *Emote) {
 		}
 		p.next()
 
-		if !inRuneSlices(p.ctx.emoteModifiers, p.lit) {
+		if !p.ctx.EmoteModifiers.Contains(p.lit) {
 			return
 		}
 		e.InsertModifier(string(p.lit))
@@ -146,7 +196,7 @@ func (p *Parser) tryParseAtNick() (n *Nick) {
 
 	p.next()
 
-	if !inRuneSlices(p.ctx.nicks, p.lit) {
+	if !p.ctx.Nicks.Contains(p.lit) {
 		return
 	}
 
@@ -216,11 +266,11 @@ func (p *Parser) parseSpan(t SpanType) (s *Span) {
 				s.Insert(n)
 			}
 		case tokWord:
-			if inRuneSlices(p.ctx.tags, p.lit) {
+			if p.ctx.Tags.Contains(p.lit) {
 				s.Insert(p.parseTag())
-			} else if inRuneSlices(p.ctx.emotes, p.lit) {
+			} else if p.ctx.Emotes.Contains(p.lit) {
 				s.Insert(p.parseEmote())
-			} else if inRuneSlices(p.ctx.nicks, p.lit) {
+			} else if p.ctx.Nicks.Contains(p.lit) {
 				s.Insert(p.parseNick())
 			} else {
 				p.next()
