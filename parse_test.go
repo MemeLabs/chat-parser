@@ -623,6 +623,30 @@ func TestRuneIndex(t *testing.T) {
 	}
 }
 
+func TestNickIndex(t *testing.T) {
+	v := NewNickIndex(RunesFromStrings([]string{
+		"FOO",
+		"Bar",
+		"baz",
+	}))
+
+	cases := []struct {
+		nick     []rune
+		expected bool
+	}{
+		{[]rune{'f', 'o', 'o'}, true},
+		{[]rune{'B', 'A', 'R'}, true},
+		{[]rune{'q', 'u', 'x'}, false},
+	}
+
+	for _, c := range cases {
+		if v.Contains(c.nick) != c.expected {
+			t.Errorf("v.Contains '%s' expected %t", string(c.nick), c.expected)
+			t.FailNow()
+		}
+	}
+}
+
 func BenchmarkParse(b *testing.B) {
 	ctx := NewParserContext(ParserContextValues{
 		Emotes:         []string{"PEPE", "CuckCrab"},

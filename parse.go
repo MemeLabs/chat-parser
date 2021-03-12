@@ -3,6 +3,9 @@ package parser
 import (
 	"sort"
 	"sync"
+	"unicode"
+
+	"github.com/petar/GoLLRB/llrb"
 )
 
 func NewRuneIndex(values [][]rune) *RuneIndex {
@@ -89,6 +92,68 @@ func compareRuneSlices(a, b []rune) int {
 	return 0
 }
 
+func NewNickIndex(values [][]rune) *NickIndex {
+	n := &NickIndex{values: llrb.New()}
+
+	items := make([]llrb.Item, len(values))
+	for i, v := range values {
+		items[i] = newNickIndexItem(v)
+	}
+	n.values.InsertNoReplaceBulk(items...)
+
+	return n
+}
+
+type NickIndex struct {
+	sync.Mutex
+	values *llrb.LLRB
+}
+
+func (n *NickIndex) Contains(v []rune) bool {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.values.Has(nickIndexItem(v))
+}
+
+func (n *NickIndex) Insert(v []rune) {
+	n.Lock()
+	defer n.Unlock()
+
+	n.values.ReplaceOrInsert(newNickIndexItem(v))
+}
+
+func (n *NickIndex) Remove(v []rune) {
+	n.Lock()
+	defer n.Unlock()
+
+	n.values.Delete(nickIndexItem(v))
+}
+
+func newNickIndexItem(v []rune) nickIndexItem {
+	r := make(nickIndexItem, len(v))
+	for i := 0; i < len(v); i++ {
+		r[i] = unicode.ToLower(v[i])
+	}
+	return r
+}
+
+type nickIndexItem []rune
+
+func (a nickIndexItem) Less(o llrb.Item) bool {
+	b := o.(nickIndexItem)
+	if len(a) != len(b) {
+		return len(a) > len(b)
+	}
+	for i := 0; i < len(a); i++ {
+		r := unicode.ToLower(b[i])
+		if a[i] != r {
+			return a[i] > r
+		}
+	}
+	return false
+}
+
 func RunesFromStrings(s []string) (r [][]rune) {
 	r = make([][]rune, len(s))
 	for i, v := range s {
@@ -108,7 +173,7 @@ func NewParserContext(opt ParserContextValues) *ParserContext {
 	return &ParserContext{
 		Emotes:         NewRuneIndex(RunesFromStrings(opt.Emotes)),
 		EmoteModifiers: NewRuneIndex(RunesFromStrings(opt.EmoteModifiers)),
-		Nicks:          NewRuneIndex(RunesFromStrings(opt.Nicks)),
+		Nicks:          NewNickIndex(RunesFromStrings(opt.Nicks)),
 		Tags:           NewRuneIndex(RunesFromStrings(opt.Tags)),
 	}
 }
@@ -116,7 +181,7 @@ func NewParserContext(opt ParserContextValues) *ParserContext {
 type ParserContext struct {
 	Emotes         *RuneIndex
 	EmoteModifiers *RuneIndex
-	Nicks          *RuneIndex
+	Nicks          *NickIndex
 	Tags           *RuneIndex
 }
 
