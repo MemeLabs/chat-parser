@@ -104,6 +104,7 @@ type Nick struct {
 	Nick   string
 	TokPos int
 	TokEnd int
+	Meta   interface{}
 }
 
 func (n *Nick) Pos() int {

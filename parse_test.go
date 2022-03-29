@@ -486,6 +486,18 @@ var parseTests = []parseTest{
 		TokPos: 0,
 		TokEnd: 10,
 	}},
+	{"incorrectly capitalized username", "@ABEOUS hi", &Span{
+		Type: SpanMessage,
+		Nodes: []Node{
+			&Nick{
+				Nick:   "abeous",
+				TokPos: 0,
+				TokEnd: 7,
+			},
+		},
+		TokPos: 0,
+		TokEnd: 10,
+	}},
 	{"username in spoiler", "hi ||@wrxst||", &Span{
 		Type: SpanMessage,
 		Nodes: []Node{

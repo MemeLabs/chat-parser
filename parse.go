@@ -93,11 +93,17 @@ func compareRuneSlices(a, b []rune) int {
 }
 
 func NewNickIndex(values [][]rune) *NickIndex {
-	n := &NickIndex{values: llrb.New()}
+	n := &NickIndex{
+		values:   llrb.New(),
+		tempItem: &nickIndexItem{},
+	}
 
 	items := make([]llrb.Item, len(values))
 	for i, v := range values {
-		items[i] = newNickIndexItem(v)
+		items[i] = &nickIndexItem{
+			key:  runeSliceToLower(v, nil),
+			nick: string(v),
+		}
 	}
 	n.values.InsertNoReplaceBulk(items...)
 
@@ -106,49 +112,77 @@ func NewNickIndex(values [][]rune) *NickIndex {
 
 type NickIndex struct {
 	sync.Mutex
-	values *llrb.LLRB
+	values   *llrb.LLRB
+	tempItem *nickIndexItem
+}
+
+func (n *NickIndex) useTempItem(v []rune) *nickIndexItem {
+	n.tempItem.key = runeSliceToLower(v, n.tempItem.key)
+	return n.tempItem
 }
 
 func (n *NickIndex) Contains(v []rune) bool {
 	n.Lock()
 	defer n.Unlock()
 
-	return n.values.Has(nickIndexItem(v))
+	return n.values.Has(n.useTempItem(v))
 }
 
-func (n *NickIndex) Insert(v []rune) {
+func (n *NickIndex) Get(v []rune) *nickIndexItem {
 	n.Lock()
 	defer n.Unlock()
 
-	n.values.ReplaceOrInsert(newNickIndexItem(v))
+	it, _ := n.values.Get(n.useTempItem(v)).(*nickIndexItem)
+	return it
+}
+
+func (n *NickIndex) Insert(v []rune) {
+	n.InsertWithMeta(v, nil)
+}
+
+func (n *NickIndex) InsertWithMeta(v []rune, m interface{}) {
+	n.Lock()
+	defer n.Unlock()
+
+	n.values.ReplaceOrInsert(&nickIndexItem{
+		key:  runeSliceToLower(v, nil),
+		nick: string(v),
+		meta: m,
+	})
 }
 
 func (n *NickIndex) Remove(v []rune) {
 	n.Lock()
 	defer n.Unlock()
 
-	n.values.Delete(nickIndexItem(v))
+	n.values.Delete(n.useTempItem(v))
 }
 
-func newNickIndexItem(v []rune) nickIndexItem {
-	r := make(nickIndexItem, len(v))
-	for i := 0; i < len(v); i++ {
-		r[i] = unicode.ToLower(v[i])
+func runeSliceToLower(src, dst []rune) []rune {
+	if cap(dst) < len(src) {
+		dst = make([]rune, len(src))
 	}
-	return r
+	dst = dst[:len(src)]
+	for i := 0; i < len(src); i++ {
+		dst[i] = unicode.ToLower(src[i])
+	}
+	return dst
 }
 
-type nickIndexItem []rune
+type nickIndexItem struct {
+	key  []rune
+	nick string
+	meta interface{}
+}
 
-func (a nickIndexItem) Less(o llrb.Item) bool {
-	b := o.(nickIndexItem)
-	if len(a) != len(b) {
-		return len(a) > len(b)
+func (a *nickIndexItem) Less(o llrb.Item) bool {
+	b := o.(*nickIndexItem)
+	if len(a.key) != len(b.key) {
+		return len(a.key) > len(b.key)
 	}
-	for i := 0; i < len(a); i++ {
-		r := unicode.ToLower(b[i])
-		if a[i] != r {
-			return a[i] > r
+	for i := 0; i < len(a.key); i++ {
+		if a.key[i] != b.key[i] {
+			return a.key[i] > b.key[i]
 		}
 	}
 	return false
@@ -244,10 +278,11 @@ func (p *Parser) parseTag() (t *Tag) {
 	return
 }
 
-func (p *Parser) parseNick() (n *Nick) {
+func (p *Parser) parseNick(it *nickIndexItem) (n *Nick) {
 	n = &Nick{
-		Nick:   string(p.lit),
+		Nick:   it.nick,
 		TokPos: p.pos,
+		Meta:   it.meta,
 	}
 
 	p.next()
@@ -261,12 +296,11 @@ func (p *Parser) tryParseAtNick() (n *Nick) {
 
 	p.next()
 
-	if !p.ctx.Nicks.Contains(p.lit) {
-		return
+	if it := p.ctx.Nicks.Get(p.lit); it != nil {
+		n = p.parseNick(it)
+		n.TokPos = pos
 	}
 
-	n = p.parseNick()
-	n.TokPos = pos
 	return
 }
 
@@ -335,8 +369,8 @@ func (p *Parser) parseSpan(t SpanType) (s *Span) {
 				s.Insert(p.parseTag())
 			} else if p.ctx.Emotes.Contains(p.lit) {
 				s.Insert(p.parseEmote())
-			} else if p.ctx.Nicks.Contains(p.lit) {
-				s.Insert(p.parseNick())
+			} else if it := p.ctx.Nicks.Get(p.lit); it != nil {
+				s.Insert(p.parseNick(it))
 			} else {
 				p.next()
 			}
